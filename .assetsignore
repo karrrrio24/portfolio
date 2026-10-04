@@ -1,0 +1,10 @@
+.git/**
+.github/**
+.gitignore
+.nojekyll
+notes/**
+
+# These two videos are served by the existing GitHub Pages deployment because
+# Cloudflare Workers static assets have a 25 MiB limit per individual file.
+assets/video/archive/crowd-web.mp4
+assets/video/desensitization-chongqing-latest.mp4

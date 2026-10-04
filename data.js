@@ -188,7 +188,7 @@ window.PORTFOLIO_DATA = {
       roleEn: "Collaborative Work",
       preview: {
         type: "video",
-        src: "assets/video/desensitization-chongqing-latest.mp4",
+        src: "https://karrrrio24.github.io/portfolio/assets/video/desensitization-chongqing-latest.mp4",
         poster: "assets/images/transcendence.png",
         alt: "《脱敏》重庆光影艺术节影像",
         orientation: "landscape",
@@ -300,7 +300,7 @@ window.PORTFOLIO_DATA = {
       roleZh: "个人作品",
       roleEn: "Personal Work",
       duration: "03:56",
-      preview: { type: "video", src: "assets/video/archive/crowd-web.mp4", alt: "《人从众》完整影像", orientation: "landscape" },
+      preview: { type: "video", src: "https://karrrrio24.github.io/portfolio/assets/video/archive/crowd-web.mp4", alt: "《人从众》完整影像", orientation: "landscape" },
       gallery: [
         { type: "image", src: "assets/images/archive/crowd-01.jpg", alt: "《人从众》装置现场", orientation: "landscape" },
         { type: "image", src: "assets/images/archive/crowd-03.png", alt: "《人从众》作品图三", orientation: "landscape" },
