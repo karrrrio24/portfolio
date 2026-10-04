@@ -184,12 +184,15 @@
     if (asset.type === "video") {
       const controls = context === "dialog" ? " controls" : "";
       const playback = context === "scene" ? " muted loop playsinline" : " playsinline";
-      return `<video class="project-media" src="${escapeHtml(asset.src)}" poster="${escapeHtml(asset.poster || "")}" preload="metadata"${playback}${controls} aria-label="${escapeHtml(asset.alt)}"></video>`;
+      const source = context === "scene"
+        ? `data-src="${escapeHtml(asset.src)}" preload="none"`
+        : `src="${escapeHtml(asset.src)}" preload="metadata"`;
+      return `<video class="project-media" ${source} poster="${escapeHtml(asset.poster || "")}"${playback}${controls} aria-label="${escapeHtml(asset.alt)}"></video>`;
     }
     if (context === "scene") {
       return `<img class="project-media" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-src="${escapeHtml(asset.src)}" alt="${escapeHtml(asset.alt)}" decoding="async" />`;
     }
-    return `<img class="project-media" src="${escapeHtml(asset.src)}" alt="${escapeHtml(asset.alt)}" decoding="async" />`;
+    return `<img class="project-media" src="${escapeHtml(asset.src)}" alt="${escapeHtml(asset.alt)}" loading="lazy" decoding="async" />`;
   };
 
   const renderSceneCarousel = (work) => {
@@ -381,14 +384,22 @@
     scrambleTimers.set(element, timer);
   };
 
-  const loadSceneImages = (scene) => {
-    scene.querySelectorAll("img[data-src]").forEach((image) => {
+  const loadCurrentSceneMedia = (scene) => {
+    const currentSlide = scene.querySelector(".scene-slide.is-current");
+    if (!currentSlide) return;
+    currentSlide.querySelectorAll("img[data-src]").forEach((image) => {
       image.src = image.dataset.src;
       image.removeAttribute("data-src");
+    });
+    currentSlide.querySelectorAll("video[data-src]").forEach((video) => {
+      video.src = video.dataset.src;
+      video.removeAttribute("data-src");
+      video.load();
     });
   };
 
   const syncSceneMedia = (scene, shouldPlay = true) => {
+    if (shouldPlay) loadCurrentSceneMedia(scene);
     scene.querySelectorAll(".scene-slide").forEach((slide) => {
       const video = slide.querySelector("video");
       if (!video) return;
@@ -409,6 +420,7 @@
     const counter = scene.querySelector(".carousel-count");
     if (counter) counter.textContent = `${numberLabel(index + 1)} / ${numberLabel(slides.length)}`;
     scene.dataset.slideIndex = String(index);
+    loadCurrentSceneMedia(scene);
     syncSceneMedia(scene, true);
   };
 
@@ -431,7 +443,7 @@
   const setSceneReveal = (scene, reveal) => {
     scene.classList.toggle("is-revealed", reveal);
     if (reveal) {
-      loadSceneImages(scene);
+      loadCurrentSceneMedia(scene);
       scrambleText(scene.querySelector("[data-scramble-target]"));
       syncSceneMedia(scene, true);
       startCarousel(scene);
@@ -479,7 +491,7 @@
     if (!("IntersectionObserver" in window)) {
       scenes.forEach((scene) => {
         scene.classList.add("is-visible", "is-active", "is-revealed");
-        loadSceneImages(scene);
+        loadCurrentSceneMedia(scene);
       });
       return;
     }
@@ -487,7 +499,7 @@
       entries.forEach((entry) => {
         entry.target.classList.toggle("is-visible", entry.isIntersecting);
         if (!entry.isIntersecting) return;
-        loadSceneImages(entry.target);
+        loadCurrentSceneMedia(entry.target);
       });
       const active = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (!active) return;

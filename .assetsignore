@@ -3,6 +3,7 @@
 .gitignore
 .nojekyll
 notes/**
+assets/images/**
 
 # These two videos are served by the existing GitHub Pages deployment because
 # Cloudflare Workers static assets have a 25 MiB limit per individual file.
