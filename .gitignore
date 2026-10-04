@@ -1,0 +1,18 @@
+# Original high-resolution videos kept locally; deploy their web-optimized copies.
+assets/video/weiqu-south.mp4
+assets/video/revelation.mp4
+assets/video/archive/crowd.mp4
+assets/video/archive/sugar-radio.mp4
+assets/video/archive/sound.mp4
+
+# Superseded local copy; the latest named version remains part of the site.
+assets/video/desensitization-chongqing.mp4
+
+# Internal notes and materials for works removed from the public portfolio.
+notes/
+assets/images/archive/not-so-*.jpg
+assets/images/archive/world-art-*.png
+assets/images/archive/world-art-history.png
+assets/images/archive/warm-cave-window.jpg
+assets/video/archive/earth-rules.mp4
+assets/video/archive/warm-cave-window.mp4
