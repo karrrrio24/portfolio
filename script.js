@@ -21,11 +21,13 @@
   const heroTitle = document.querySelector(".hero-title");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const finePointer = window.matchMedia("(pointer: fine)").matches;
+  const compactMedia = window.matchMedia("(max-width: 620px)").matches;
   const workMap = new Map(data.works.map((work) => [work.id, work]));
   const featuredWorks = data.works.filter((work) => work.featured);
   const scrambleTimers = new WeakMap();
   const carouselTimers = new WeakMap();
   let returnFocusTo = null;
+  let dialogMediaObserver = null;
 
   const escapeHtml = (value = "") =>
     String(value)
@@ -36,6 +38,14 @@
       .replaceAll("'", "&#039;");
 
   const numberLabel = (value) => String(value).padStart(2, "0");
+
+  const mobileImagePath = (src = "") =>
+    src.startsWith("assets/images-web/")
+      ? src.replace("assets/images-web/", "assets/images-mobile/")
+      : "";
+
+  const preferredImagePath = (src = "") =>
+    compactMedia && mobileImagePath(src) ? mobileImagePath(src) : src;
 
   const buildAsciiField = (seed, width = 68, height = 24) => {
     const tones = " .·:░▒▓█";
@@ -184,24 +194,29 @@
     if (asset.type === "video") {
       const controls = context === "dialog" ? " controls" : "";
       const playback = context === "scene" ? " muted loop playsinline" : " playsinline";
-      const source = context === "scene"
-        ? `data-src="${escapeHtml(asset.src)}" preload="none"`
-        : `src="${escapeHtml(asset.src)}" preload="metadata"`;
-      return `<video class="project-media" ${source} poster="${escapeHtml(asset.poster || "")}"${playback}${controls} aria-label="${escapeHtml(asset.alt)}"></video>`;
+      const source = `data-src="${escapeHtml(asset.src)}" preload="none"`;
+      const video = `<video class="project-media" ${source} poster="${escapeHtml(preferredImagePath(asset.poster || ""))}"${playback}${controls} aria-label="${escapeHtml(asset.alt)}"></video>`;
+      if (context === "dialog") {
+        return `${video}<button class="dialog-video-start" type="button" data-video-start aria-label="播放${escapeHtml(asset.alt)}"><span aria-hidden="true">▶</span><small>PLAY</small></button>`;
+      }
+      return video;
     }
-    if (context === "scene") {
-      return `<img class="project-media" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-src="${escapeHtml(asset.src)}" alt="${escapeHtml(asset.alt)}" decoding="async" />`;
-    }
-    return `<img class="project-media" src="${escapeHtml(asset.src)}" alt="${escapeHtml(asset.alt)}" loading="lazy" decoding="async" />`;
+    const mobileSrc = mobileImagePath(asset.src);
+    return `<img class="project-media" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-src="${escapeHtml(asset.src)}"${mobileSrc ? ` data-mobile-src="${escapeHtml(mobileSrc)}"` : ""} alt="${escapeHtml(asset.alt)}"${context === "dialog" ? ' loading="lazy"' : ""} decoding="async" />`;
   };
 
-  const renderSceneCarousel = (work) => {
+  const getHomepageAssets = (work) => {
     const allAssets = [work.preview, ...(work.gallery || [])].filter(Boolean);
     const directVideo = allAssets.find((asset) => asset.type === "video");
     const useHomepageVideo = Boolean(directVideo && work.homepageMedia !== "images");
-    const assets = useHomepageVideo
+    return useHomepageVideo
       ? [directVideo]
       : allAssets.filter((asset) => asset.type !== "video").slice(0, 10);
+  };
+
+  const renderSceneCarousel = (work) => {
+    const assets = getHomepageAssets(work);
+    const useHomepageVideo = assets.length === 1 && assets[0].type === "video";
     const mediaLabel = useHomepageVideo ? `${work.titleZh} 视频` : `${work.titleZh} 图片轮播`;
     const counter = assets.length > 1 ? `<span class="carousel-count" aria-hidden="true">01 / ${numberLabel(assets.length)}</span>` : "";
     return `<div class="scene-carousel" aria-label="${escapeHtml(mediaLabel)}">${assets.map((asset, index) => {
@@ -235,6 +250,11 @@
       const alias = work.aliases.length
         ? `<p class="work-alias">后续阶段 / LATER TITLE<br />${escapeHtml(work.aliases.join(" · "))}</p>`
         : `<p class="work-alias">${escapeHtml(work.roleZh)}<br />${escapeHtml(work.roleEn)}</p>`;
+      const homepageAssets = getHomepageAssets(work);
+      const carouselControl = homepageAssets.length > 1
+        ? ` role="button" tabindex="0" data-carousel-control aria-label="切换《${escapeHtml(work.titleZh)}》的下一张图片"`
+        : "";
+      const mediaMode = homepageAssets.length > 1 ? "AUTO / TAP" : "MOVING IMAGE";
       const decodeField = buildWorkAscii(work.id, 88, 34);
       const decodeData = buildAsciiDataLayer(work.order, 88, 34);
       return `
@@ -246,7 +266,7 @@
               <span>${escapeHtml(work.year)}</span>
             </header>
             <div class="work-stage">
-              <div class="work-visual">
+              <div class="work-visual"${carouselControl}>
                 ${renderSceneCarousel(work)}
                 <div class="decode-curtain" aria-hidden="true">
                   <div class="decode-ascii-stack">
@@ -266,7 +286,7 @@
                   <div class="decode-readout"><span>IMG_${numberLabel(work.order)} / BUFFER</span><span>X${numberLabel(work.order * 17)} Y${numberLabel(work.order * 29)}</span></div>
                   <p class="decode-title" data-scramble-target="${escapeHtml(work.titleZh)}">▓▒░01#@</p>
                 </div>
-                <span class="work-media-label" aria-hidden="true">HOVER CAROUSEL · ${numberLabel(work.order)}</span>
+                <span class="work-media-label" aria-hidden="true">${mediaMode} · ${numberLabel(work.order)}</span>
               </div>
               <div class="work-copy">
                 <div class="work-title-wrap">
@@ -357,6 +377,53 @@
       ${detailBody}</article>`;
   };
 
+  const setUpDialogMedia = () => {
+    if (dialogMediaObserver) dialogMediaObserver.disconnect();
+    dialogMediaObserver = null;
+    const shell = dialog.querySelector(".dialog-shell");
+    const images = [...dialogContent.querySelectorAll("img[data-src]")];
+    const loadImage = (image) => {
+      if (!image.dataset.src) return;
+      image.src = compactMedia && image.dataset.mobileSrc ? image.dataset.mobileSrc : image.dataset.src;
+      image.removeAttribute("data-src");
+      image.removeAttribute("data-mobile-src");
+    };
+    if ("IntersectionObserver" in window && shell) {
+      dialogMediaObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          loadImage(entry.target);
+          observer.unobserve(entry.target);
+        });
+      }, { root: shell, rootMargin: "0px", threshold: 0.01 });
+      images.forEach((image) => dialogMediaObserver.observe(image));
+    } else {
+      images.forEach(loadImage);
+    }
+
+    dialogContent.querySelectorAll("video[data-src]").forEach((video) => {
+      const activateVideo = () => {
+        if (!video.dataset.src) return;
+        video.src = video.dataset.src;
+        video.removeAttribute("data-src");
+        video.load();
+      };
+      const startButton = video.parentElement?.querySelector("[data-video-start]");
+      video.addEventListener("pointerdown", activateVideo, { once: true });
+      video.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") activateVideo();
+      });
+      if (startButton) {
+        startButton.addEventListener("click", () => {
+          activateVideo();
+          startButton.hidden = true;
+          video.play().catch(() => {});
+        });
+        video.addEventListener("play", () => { startButton.hidden = true; });
+      }
+    });
+  };
+
   const scrambleText = (element) => {
     if (!element) return;
     const target = element.dataset.scrambleTarget || "";
@@ -384,18 +451,28 @@
     scrambleTimers.set(element, timer);
   };
 
-  const loadCurrentSceneMedia = (scene) => {
-    const currentSlide = scene.querySelector(".scene-slide.is-current");
-    if (!currentSlide) return;
-    currentSlide.querySelectorAll("img[data-src]").forEach((image) => {
-      image.src = image.dataset.src;
+  const loadSceneSlideMedia = (slide) => {
+    if (!slide) return;
+    slide.querySelectorAll("img[data-src]").forEach((image) => {
+      image.src = compactMedia && image.dataset.mobileSrc ? image.dataset.mobileSrc : image.dataset.src;
       image.removeAttribute("data-src");
+      image.removeAttribute("data-mobile-src");
     });
-    currentSlide.querySelectorAll("video[data-src]").forEach((video) => {
+    slide.querySelectorAll("video[data-src]").forEach((video) => {
       video.src = video.dataset.src;
       video.removeAttribute("data-src");
       video.load();
     });
+  };
+
+  const loadCurrentSceneMedia = (scene) => {
+    const slides = [...scene.querySelectorAll(".scene-slide")];
+    const currentIndex = slides.findIndex((slide) => slide.classList.contains("is-current"));
+    if (currentIndex < 0) return;
+    loadSceneSlideMedia(slides[currentIndex]);
+    if (scene.classList.contains("is-revealed") && slides.length > 1) {
+      loadSceneSlideMedia(slides[(currentIndex + 1) % slides.length]);
+    }
   };
 
   const syncSceneMedia = (scene, shouldPlay = true) => {
@@ -433,6 +510,19 @@
     carouselTimers.set(scene, timer);
   };
 
+  const resetCarousel = (scene) => {
+    const timer = carouselTimers.get(scene);
+    if (timer) window.clearInterval(timer);
+    carouselTimers.delete(scene);
+    if (scene.classList.contains("is-revealed")) startCarousel(scene);
+  };
+
+  const advanceCarousel = (scene) => {
+    const current = Number.parseInt(scene.dataset.slideIndex || "0", 10);
+    setCarouselSlide(scene, current + 1);
+    resetCarousel(scene);
+  };
+
   const stopCarousel = (scene) => {
     const timer = carouselTimers.get(scene);
     if (timer) window.clearInterval(timer);
@@ -461,6 +551,7 @@
     if (dialogShell) dialogShell.scrollTop = 0;
     document.documentElement.classList.add("modal-open");
     dialog.showModal();
+    setUpDialogMedia();
     closeButton.focus();
     if (stageIndex !== null) {
       requestAnimationFrame(() => {
@@ -477,6 +568,15 @@
   const setUpScenes = () => {
     const scenes = [...document.querySelectorAll(".work-scene")];
     scenes.forEach((scene) => {
+      const carouselControl = scene.querySelector("[data-carousel-control]");
+      if (carouselControl) {
+        carouselControl.addEventListener("click", () => advanceCarousel(scene));
+        carouselControl.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          advanceCarousel(scene);
+        });
+      }
       scene.addEventListener("pointerenter", () => setSceneReveal(scene, true));
       scene.addEventListener("pointerleave", () => {
         if (finePointer && !scene.matches(":focus-within")) setSceneReveal(scene, false);
@@ -516,6 +616,17 @@
   const setUpRipple = () => {
     const titles = [...rippleStage.querySelectorAll(".ripple-title")];
     let lastRipple = 0;
+    let activePointer = null;
+    let pointerStart = null;
+    let suppressClick = false;
+    let touchResetTimer = 0;
+    const resetTouchReveal = () => {
+      titles.forEach((title, index) => {
+        title.style.removeProperty("--proximity");
+        title.classList.toggle("is-near", index < 6);
+      });
+      rippleIndex.classList.remove("is-touching");
+    };
     const revealNearby = (clientX, clientY) => {
       const rect = rippleIndex.getBoundingClientRect();
       const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
@@ -543,13 +654,35 @@
       rippleIndex.append(ripple);
       ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
     };
-    rippleIndex.addEventListener("pointermove", (event) => revealNearby(event.clientX, event.clientY));
-    rippleIndex.addEventListener("pointerdown", (event) => revealNearby(event.clientX, event.clientY));
+    rippleIndex.addEventListener("pointermove", (event) => {
+      if (event.pointerType !== "mouse" && event.pointerId !== activePointer) return;
+      if (pointerStart && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 9) suppressClick = true;
+      revealNearby(event.clientX, event.clientY);
+    });
+    rippleIndex.addEventListener("pointerdown", (event) => {
+      activePointer = event.pointerId;
+      pointerStart = { x: event.clientX, y: event.clientY };
+      suppressClick = false;
+      window.clearTimeout(touchResetTimer);
+      if (event.pointerType !== "mouse") rippleIndex.classList.add("is-touching");
+      revealNearby(event.clientX, event.clientY);
+    });
+    const endTouch = (event) => {
+      if (event.pointerId !== activePointer) return;
+      activePointer = null;
+      pointerStart = null;
+      if (event.pointerType !== "mouse") touchResetTimer = window.setTimeout(resetTouchReveal, 1400);
+    };
+    rippleIndex.addEventListener("pointerup", endTouch);
+    rippleIndex.addEventListener("pointercancel", endTouch);
+    rippleIndex.addEventListener("click", (event) => {
+      if (!suppressClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClick = false;
+    }, true);
     rippleIndex.addEventListener("pointerleave", () => {
-      titles.forEach((title, index) => {
-        title.style.removeProperty("--proximity");
-        title.classList.toggle("is-near", index < 6);
-      });
+      if (activePointer === null) resetTouchReveal();
     });
     titles.forEach((title) => title.addEventListener("focus", () => title.classList.add("is-near")));
   };
@@ -726,6 +859,9 @@
     if (event.target === dialog || event.target.classList.contains("dialog-shell")) closeDialog();
   });
   dialog.addEventListener("close", () => {
+    if (dialogMediaObserver) dialogMediaObserver.disconnect();
+    dialogMediaObserver = null;
+    dialogContent.querySelectorAll("video").forEach((video) => video.pause());
     document.documentElement.classList.remove("modal-open");
     if (returnFocusTo) returnFocusTo.focus();
     returnFocusTo = null;

@@ -637,6 +637,15 @@ body.is-ready .hero-line:nth-child(3) {
   background: #050506;
 }
 
+.work-visual[data-carousel-control] {
+  cursor: pointer;
+}
+
+.work-visual[data-carousel-control]:focus-visible {
+  outline: 1px solid var(--paper);
+  outline-offset: -0.35rem;
+}
+
 .scene-carousel,
 .scene-slide {
   position: absolute;
@@ -1156,6 +1165,7 @@ body.is-ready .hero-line:nth-child(3) {
     radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(41, 71, 255, 0.23), transparent 8%),
     #070708;
   cursor: crosshair;
+  touch-action: pan-y;
 }
 
 .ripple-index::before,
@@ -1942,6 +1952,45 @@ button.archive-item {
   background: transparent;
 }
 
+.dialog-video-start {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  aspect-ratio: 1;
+  color: var(--paper);
+  border: 1px solid rgba(241, 238, 230, 0.62);
+  border-radius: 50%;
+  background: rgba(5, 5, 6, 0.72);
+  font-family: var(--mono);
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(0.3rem);
+}
+
+.dialog-video-start span {
+  margin-left: 0.18rem;
+  font-size: 1.05rem;
+}
+
+.dialog-video-start small {
+  font-size: 0.48rem;
+  letter-spacing: 0.08em;
+}
+
+.dialog-video-start:hover,
+.dialog-video-start:focus-visible {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.dialog-video-start[hidden] {
+  display: none;
+}
+
 .detail-noise-fill {
   opacity: 0.82;
 }
@@ -2274,9 +2323,14 @@ button.archive-item {
   }
 
   .ripple-title {
+    left: clamp(4rem, calc(var(--x) * 1%), calc(100% - 4rem));
     max-width: 8rem;
     gap: 0.25rem;
     padding: 0.2rem;
+  }
+
+  .ripple-index.is-touching .ripple-title.is-near {
+    opacity: 1;
   }
 
   .ripple-name {
@@ -2360,10 +2414,25 @@ button.archive-item {
     grid-template-columns: 1fr;
   }
 
+  .detail-gallery-archive.detail-gallery-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
   .detail-gallery-archive .detail-gallery-item,
   .detail-gallery-archive .detail-gallery-lead {
     grid-column: 1 !important;
     min-height: 0;
+  }
+
+  .detail-gallery-archive.detail-gallery-compact .detail-gallery-item,
+  .detail-gallery-archive.detail-gallery-compact .detail-gallery-lead {
+    grid-column: auto !important;
+    width: 100%;
+  }
+
+  .detail-gallery-archive.detail-gallery-compact .detail-gallery-video {
+    grid-column: 1 / -1 !important;
   }
 
   .detail-gallery-archive.detail-gallery-pairs {
