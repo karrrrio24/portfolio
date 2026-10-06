@@ -47,6 +47,12 @@
   const preferredImagePath = (src = "") =>
     compactMedia && mobileImagePath(src) ? mobileImagePath(src) : src;
 
+  const mobileVideoSources = new Map([
+    ["assets/video/post-shadow-play.mp4", "assets/video/mobile/post-shadow-play-mobile.mp4"],
+    ["https://karrrrio24.github.io/portfolio/assets/video/desensitization-chongqing-latest.mp4", "assets/video/mobile/desensitization-mobile.mp4"],
+    ["assets/video/weiqu-south-web.mp4", "assets/video/mobile/weiqu-south-mobile.mp4"],
+  ]);
+
   const buildAsciiField = (seed, width = 68, height = 24) => {
     const tones = " .·:░▒▓█";
     let state = seed * 104729 + 17;
@@ -194,10 +200,16 @@
     if (asset.type === "video") {
       const controls = context === "dialog" ? " controls" : "";
       const playback = context === "scene" ? " muted loop playsinline" : " playsinline";
-      const source = `data-src="${escapeHtml(asset.src)}" preload="none"`;
-      const video = `<video class="project-media" ${source} poster="${escapeHtml(preferredImagePath(asset.poster || ""))}"${playback}${controls} aria-label="${escapeHtml(asset.alt)}"></video>`;
+      const mobileVideoSrc = mobileVideoSources.get(asset.src);
+      const manualMobilePlayback = Boolean(context === "scene" && compactMedia && mobileVideoSrc);
+      const source = `data-src="${escapeHtml(manualMobilePlayback ? mobileVideoSrc : asset.src)}" preload="none"`;
+      const manualAttribute = manualMobilePlayback ? " data-manual-play" : "";
+      const video = `<video class="project-media" ${source} poster="${escapeHtml(preferredImagePath(asset.poster || ""))}"${playback}${controls}${manualAttribute} aria-label="${escapeHtml(asset.alt)}"></video>`;
       if (context === "dialog") {
         return `${video}<button class="dialog-video-start" type="button" data-video-start aria-label="播放${escapeHtml(asset.alt)}"><span aria-hidden="true">▶</span><small>PLAY</small></button>`;
+      }
+      if (manualMobilePlayback) {
+        return `${video}<button class="scene-video-start" type="button" data-scene-video-start aria-label="点击播放${escapeHtml(asset.alt)}"><span aria-hidden="true">▶</span><small>点击播放 / TAP TO PLAY</small></button>`;
       }
       return video;
     }
@@ -254,7 +266,8 @@
       const carouselControl = homepageAssets.length > 1
         ? ` role="button" tabindex="0" data-carousel-control aria-label="切换《${escapeHtml(work.titleZh)}》的下一张图片"`
         : "";
-      const mediaMode = homepageAssets.length > 1 ? "AUTO / TAP" : "MOVING IMAGE";
+      const homepageVideo = homepageAssets.length === 1 && homepageAssets[0].type === "video";
+      const mediaMode = homepageAssets.length > 1 ? "AUTO / TAP" : compactMedia && homepageVideo ? "TAP TO PLAY" : "MOVING IMAGE";
       const decodeField = buildWorkAscii(work.id, 88, 34);
       const decodeData = buildAsciiDataLayer(work.order, 88, 34);
       return `
@@ -459,6 +472,7 @@
       image.removeAttribute("data-mobile-src");
     });
     slide.querySelectorAll("video[data-src]").forEach((video) => {
+      if (video.hasAttribute("data-manual-play")) return;
       video.src = video.dataset.src;
       video.removeAttribute("data-src");
       video.load();
@@ -480,6 +494,10 @@
     scene.querySelectorAll(".scene-slide").forEach((slide) => {
       const video = slide.querySelector("video");
       if (!video) return;
+      if (video.hasAttribute("data-manual-play")) {
+        if (!shouldPlay) video.pause();
+        return;
+      }
       if (slide.classList.contains("is-current") && shouldPlay && scene.classList.contains("is-active") && !reduceMotion) video.play().catch(() => {});
       else video.pause();
     });
@@ -568,6 +586,31 @@
   const setUpScenes = () => {
     const scenes = [...document.querySelectorAll(".work-scene")];
     scenes.forEach((scene) => {
+      const videoStart = scene.querySelector("[data-scene-video-start]");
+      if (videoStart) {
+        const video = scene.querySelector("video[data-manual-play]");
+        videoStart.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (!video) return;
+          videoStart.classList.add("is-loading");
+          videoStart.setAttribute("aria-busy", "true");
+          const label = videoStart.querySelector("small");
+          if (label) label.textContent = "加载中 / LOADING";
+          if (video.dataset.src) {
+            video.src = video.dataset.src;
+            video.removeAttribute("data-src");
+            video.load();
+          }
+          video.controls = true;
+          video.play().then(() => {
+            videoStart.hidden = true;
+          }).catch(() => {
+            videoStart.classList.remove("is-loading");
+            videoStart.removeAttribute("aria-busy");
+            if (label) label.textContent = "点击播放 / TAP TO PLAY";
+          });
+        });
+      }
       const carouselControl = scene.querySelector("[data-carousel-control]");
       if (carouselControl) {
         carouselControl.addEventListener("click", () => advanceCarousel(scene));
@@ -619,7 +662,6 @@
     let activePointer = null;
     let pointerStart = null;
     let suppressClick = false;
-    let touchResetTimer = 0;
     const resetTouchReveal = () => {
       titles.forEach((title, index) => {
         title.style.removeProperty("--proximity");
@@ -663,7 +705,6 @@
       activePointer = event.pointerId;
       pointerStart = { x: event.clientX, y: event.clientY };
       suppressClick = false;
-      window.clearTimeout(touchResetTimer);
       if (event.pointerType !== "mouse") rippleIndex.classList.add("is-touching");
       revealNearby(event.clientX, event.clientY);
     });
@@ -671,7 +712,6 @@
       if (event.pointerId !== activePointer) return;
       activePointer = null;
       pointerStart = null;
-      if (event.pointerType !== "mouse") touchResetTimer = window.setTimeout(resetTouchReveal, 1400);
     };
     rippleIndex.addEventListener("pointerup", endTouch);
     rippleIndex.addEventListener("pointercancel", endTouch);
@@ -681,8 +721,8 @@
       event.stopPropagation();
       suppressClick = false;
     }, true);
-    rippleIndex.addEventListener("pointerleave", () => {
-      if (activePointer === null) resetTouchReveal();
+    rippleIndex.addEventListener("pointerleave", (event) => {
+      if (event.pointerType === "mouse" && activePointer === null) resetTouchReveal();
     });
     titles.forEach((title) => title.addEventListener("focus", () => title.classList.add("is-near")));
   };

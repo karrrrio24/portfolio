@@ -2303,6 +2303,62 @@ button.archive-item {
     aspect-ratio: 16 / 10;
   }
 
+  .scene-slide.is-current {
+    pointer-events: auto;
+  }
+
+  .decode-curtain {
+    pointer-events: none;
+  }
+
+  .scene-video-start {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    place-items: center;
+    width: min(11.5rem, 52%);
+    min-height: 4.6rem;
+    padding: 0.75rem 1rem;
+    color: var(--paper);
+    border: 1px solid rgba(241, 238, 230, 0.68);
+    background: rgba(5, 5, 6, 0.76);
+    font-family: var(--mono);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    transition: opacity 220ms ease;
+    backdrop-filter: blur(0.35rem);
+  }
+
+  .work-scene.is-revealed .scene-video-start {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .scene-video-start span {
+    font-size: 1.05rem;
+  }
+
+  .scene-video-start small {
+    font-size: 0.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  .scene-video-start.is-loading span {
+    animation: play-pulse 820ms steps(2, end) infinite;
+  }
+
+  @keyframes play-pulse {
+    50% { opacity: 0.28; }
+  }
+
+  .scene-video-start[hidden] {
+    display: none;
+  }
+
   .receipt-printer {
     min-height: 27rem;
   }
